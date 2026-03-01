@@ -1,0 +1,22 @@
+dataset_id,metric_group,metric_key,metric_name_uz,sex,settlement_type,measure_unit,unit_type
+223,births,birth_total,tug'ilganlar jami,total,total,count,flow
+224,births,birth_girls,tug'ilganlar qiz,female,total,count,flow
+225,births,birth_boys,tug'ilganlar o'gil,male,total,count,flow
+226,deaths,death_total,o'lganlar jami,total,total,count,flow
+227,deaths,death_women,olganlar_ayol,female,total,count,flow
+228,deaths,death_men,olganlar_erkak,male,total,count,flow
+230,divorces,divorces_total,ajrashganlar_jami,total,total,count,flow
+233,divorces,divorces_urban,ajrashganlar_shahar,total,urban,count,flow
+232,divorces,divorces_rural,ajrashganlar_qishloq,total,rural,count,flow
+268,migration,in_migration,kochib_kelganlar,total,total,count,flow
+269,migration,out_migration,kochib_ketganlar,total,total,count,flow
+238,migration,in_migration_total,kochib_kelganlar_jami,total,total,count,flow
+239,migration,out_migration_total,kochib_kelganlar_jami,total,total,count,flow
+243,marriages,marriages_total,nikoh_qurish_jami,total,total,count,flow
+235,marriages,marriages_urban,nikoh_qurish_shahar,total,urban,count,flow
+242,marriages,marriages_rural,nihoh_qurish_qishloq,total,rural,count,flow
+244,population,population_women,doimiy_aholi_ayol,female,total,people,stock
+245,population,population_men,doimiy_aholi_erkak,male,total,people,stock
+246,population,population_total,doimiy_aholi_jami,total,total,people,stock
+247,population,population_rural,doimiy_aholi_qishloq,total,rural,people,stock
+248,population,population_urban,doimiy_aholi_shahar,total,urban,people,stock

@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: namangan_raw_data
+    schema: raw
+    tables:
+      - name: sdmx_data_223
+      - name: sdmx_data_224
+      - name: sdmx_data_225
+      - name: sdmx_data_226
+      - name: sdmx_data_227
+      - name: sdmx_data_228
+      - name: sdmx_data_243
+      - name: sdmx_data_235
+      - name: sdmx_data_242
+      - name: sdmx_data_230
+      - name: sdmx_data_233
+      - name: sdmx_data_232
+      - name: sdmx_data_268
+      - name: sdmx_data_269
+      - name: sdmx_data_244
+      - name: sdmx_data_245
+      - name: sdmx_data_246
+      - name: sdmx_data_247
+      - name: sdmx_data_248

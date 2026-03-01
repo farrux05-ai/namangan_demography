@@ -1,0 +1,389 @@
+version: 2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SEEDS
+# ─────────────────────────────────────────────────────────────────────────────
+
+seeds:
+  - name: dim_metric
+    description: >
+      Dataset ID → metrik semantikasi xaritasi. Har bir SDMX dataset_id uchun
+      metric_group, metric_key, sex va settlement_type qiymatlarini belgilaydi.
+      Bu seed butun pipeline ning "haqiqat manbai" — biror metric_key o'zgarse,
+      faqat shu faylni yangilash kifoya.
+    columns:
+      - name: dataset_id
+        description: "SDMX dataset identifikatori (masalan: 223, 226)."
+        data_tests:
+          - not_null
+          - unique
+      - name: metric_group
+        description: "Yuqori darajali kategoriya: population, birth, death, migration, marriages, divorce."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['population', 'birth', 'death', 'migration', 'marriages', 'divorce']
+      - name: metric_key
+        description: "Metrik identifikatori (masalan: population_total, birth_girls)."
+        data_tests:
+          - not_null
+      - name: sex
+        description: "Jins filtri: male, female, total, yoki NULL (sex filter yo'q)."
+      - name: settlement_type
+        description: "Joylashuv filtri: urban, rural, total, yoki NULL."
+
+  - name: geo_override
+    description: >
+      Geografik nomlarga manual to'g'rilashlar. Manba CSV lardagi xom geo_name_raw
+      qiymatlari ba'zan noto'g'ri yoki tartibsiz bo'ladi — shu seed orqali tozalanadi.
+    columns:
+      - name: geo_code
+        description: "To'g'rilanadigan hududning kodi."
+        data_tests:
+          - not_null
+          - unique
+      - name: geo_name_clean
+        description: "To'g'rilangan tozalangan nom."
+        data_tests:
+          - not_null
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGING
+# ─────────────────────────────────────────────────────────────────────────────
+
+models:
+  - name: stg_sdmx_223_long
+    description: >
+      Dataset 223 (aholi jami) — wide formatdan long formatga o'tkazilgan.
+      Kontrakt: dataset_id, geo_code, geo_name_raw, year, value.
+    columns: &stg_columns
+      - name: dataset_id
+        description: "Manba dataset ID — barcha staging modellarida bir xil kontrakt."
+        data_tests: [not_null]
+      - name: geo_code
+        description: "Hudud kodi (masalan: 1714, 1714401)."
+        data_tests: [not_null]
+      - name: geo_name_raw
+        description: "Manba fayl dagi xom hudud nomi (o'zbekcha)."
+      - name: year
+        description: "Kalendar yili."
+        data_tests: [not_null]
+      - name: value
+        description: "Metrikning son qiymati."
+
+  # Qolgan staging modellar ham bir xil kontraktga ega
+  - name: stg_sdmx_224_long
+    description: "Dataset 224 (shahar/qishloq aholisi) — long format."
+    columns: *stg_columns
+
+  - name: stg_sdmx_225_long
+    description: "Dataset 225 (tug'ilish jami) — long format."
+    columns: *stg_columns
+
+  - name: stg_sdmx_226_long
+    description: "Dataset 226 (tug'ilish jins bo'yicha) — long format."
+    columns: *stg_columns
+
+  - name: stg_sdmx_227_long
+    description: "Dataset 227 (vafot) — long format."
+    columns: *stg_columns
+
+  - name: stg_sdmx_242_long
+    description: "Dataset 242 (nikoh) — long format."
+    columns: *stg_columns
+
+  - name: stg_sdmx_268_long
+    description: "Dataset 268 (aholi jins bo'yicha, 2014+) — long format."
+    columns: *stg_columns
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INTERMEDIATE
+# ─────────────────────────────────────────────────────────────────────────────
+
+  - name: int_demography_atomic
+    description: >
+      Pipeline ning asosiy conformed jadvali.
+      Barcha staging modellar UNION qilinadi va dim_metric orqali
+      semantik boyitiladi. Downstream modellarning barchasi shu jadvaldan o'qiydi.
+
+      Grain: geo_code × year × metric_key × sex × settlement_type
+
+      Muhim eslatma: sex va settlement_type NULL bo'lsa, 'total' bilan
+      to'ldiriladi (COALESCE). Bu downstream filtrlashni soddalashtiradi.
+    columns:
+      - name: geo_code
+        description: "Hudud kodi. dim_geo.geo_code ga FK."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_geo')
+              field: geo_code
+
+      - name: dataset_id
+        description: "Manba SDMX dataset ID."
+        data_tests: [not_null]
+
+      - name: geo_name_raw
+        description: "Manba fayl dagi xom hudud nomi (auditing uchun saqlanadi)."
+
+      - name: year
+        description: "Kalendar yili (2010–2024)."
+        data_tests: [not_null]
+
+      - name: metric_group
+        description: "Yuqori darajali kategoriya (population, birth, death, migration, marriages, divorce)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['population', 'birth', 'death', 'migration', 'marriages', 'divorce']
+
+      - name: metric_key
+        description: >
+          Metrik identifikatori. Mumkin qiymatlar:
+          population_total, population_men, population_women,
+          population_urban, population_rural,
+          birth_total, birth_girls, birth_boys,
+          death_total, death_men, death_women,
+          in_migration, out_migration,
+          marriages_total, marriages_urban, marriages_rural,
+          divorces_total, divorces_urban, divorces_rural.
+        data_tests: [not_null]
+
+      - name: sex
+        description: "Jins: male, female, total. NULL bo'lsa 'total' bilan to'ldiriladi."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_sex')
+              field: sex_id
+
+      - name: settlement_type
+        description: "Joylashuv: urban, rural, total. NULL bo'lsa 'total' bilan to'ldiriladi."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_settlement_type')
+              field: settlement_type_id
+
+      - name: value
+        description: "Metrikning son qiymati (absolyut son)."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DIMENSIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+  - name: dim_geo
+    description: >
+      Geografiya dimensiyasi. int_demography_atomic dan unique geo_code lar olinib,
+      geo_override seed bilan birlashtirilib, tozalangan nomlar va geo_level
+      klassifikatsiyasi qo'shiladi.
+
+      Namangan viloyati uchun geo_level qiymatlari:
+      - viloyat: 1714 (Namangan viloyati)
+      - shahar:  1714401 (Namangan shahri)
+      - tuman:   1714xxx (tumanlar)
+    columns:
+      - name: geo_code
+        description: "Birlamchi kalit."
+        data_tests: [not_null, unique]
+      - name: geo_name
+        description: "Tozalangan hudud nomi (geo_override mavjud bo'lsa — override, aks holda geo_name_raw)."
+        data_tests: [not_null]
+      - name: geo_level
+        description: "Ierarxiya darajasi: viloyat, shahar, tuman, nomalum."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['viloyat', 'shahar', 'tuman', 'nomalum']
+
+  - name: dim_sex
+    description: "Jins dimensiyasi: male, female, total — tartib va yorliqlar bilan."
+    columns:
+      - name: sex_id
+        description: "Birlamchi kalit (male / female / total)."
+        data_tests: [not_null, unique]
+      - name: sex_label_uz
+        description: "O'zbekcha yorliq."
+
+  - name: dim_settlement_type
+    description: "Joylashuv dimensiyasi: urban, rural, total — tartib va yorliqlar bilan."
+    columns:
+      - name: settlement_type_id
+        description: "Birlamchi kalit (urban / rural / total)."
+        data_tests: [not_null, unique]
+      - name: settlement_label_uz
+        description: "O'zbekcha yorliq (Shahar / Qishloq / Jami)."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FACTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+  - name: fact_population_yearly
+    description: >
+      Aholi zaxirasi (stock) yillik grain da.
+      int_demography_atomic dan metric_group = 'population' filtrlangan.
+
+      Grain: geo_code × year × metric_key × sex × settlement_type
+    columns:
+      - name: geo_code
+        data_tests: [not_null]
+      - name: year
+        data_tests: [not_null]
+      - name: metric_key
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['population_total', 'population_men', 'population_women',
+                       'population_urban', 'population_rural']
+      - name: population_cnt
+        description: "Aholi soni (absolyut, minglarda)."
+
+  - name: fact_demography_flows_yearly
+    description: >
+      Demografik oqimlar (flow) yillik grain da.
+      Tug'ilish, vafot, migratsiya, nikoh, ajrashish.
+
+      Grain: geo_code × year × metric_key × sex × settlement_type
+    columns:
+      - name: metric_group
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['birth', 'death', 'migration', 'marriages', 'divorce']
+      - name: event_cnt
+        description: "Hodisalar soni (absolyut)."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MARTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+  - name: mart_region_overview_yearly
+    description: >
+      Barcha hududlar (viloyat + tuman + shahar) uchun asosiy ko'rsatkichlar.
+      sex = 'total' va settlement_type = 'total' filtrlangan.
+      Dashboard Tab 1 va Tab 2 uchun asosiy manba.
+
+      Grain: geo_code × year
+    columns:
+      - name: geo_code
+        data_tests: [not_null]
+      - name: geo_name
+        description: "dim_geo dan olingan tozalangan hudud nomi."
+      - name: geo_level
+        description: "viloyat / shahar / tuman."
+      - name: year
+        data_tests: [not_null]
+      - name: population_total
+        description: "Aholi soni (ming)."
+      - name: birth_total
+        description: "Tug'ilishlar soni."
+      - name: death_total
+        description: "Vafot etganlar soni."
+      - name: in_migration
+        description: "Kelganlar soni."
+      - name: out_migration
+        description: "Ketganlar soni."
+      - name: marriages_total
+        description: "Nikohlar soni."
+      - name: divorces_total
+        description: "Ajrashishlar soni."
+      - name: natural_increase
+        description: "Tabiiy o'sish = birth_total - death_total."
+      - name: net_migration
+        description: "Sof migratsiya = in_migration - out_migration."
+      - name: cbr_per_1000
+        description: "Xom tug'ilish koeffitsienti = birth_total / population_total * 1000."
+      - name: cdr_per_1000
+        description: "Xom o'lim koeffitsienti = death_total / population_total * 1000."
+      - name: net_mig_per_1000
+        description: "Sof migratsiya koeffitsienti = net_migration / population_total * 1000."
+
+  - name: mart_namangan_overview_yearly
+    description: >
+      mart_region_overview_yearly ning Namangan viloyati (1714%) uchun filtrlangan versiyasi.
+      Eski mos keluvchi mart — mart_region_overview_yearly bilan bir xil strukturada.
+    columns:
+      - name: natural_increase
+        description: "Tabiiy o'sish = birth_total - death_total."
+      - name: cbr_per_1000
+        description: "Xom tug'ilish koeffitsienti (‰)."
+      - name: cdr_per_1000
+        description: "Xom o'lim koeffitsienti (‰)."
+      - name: net_mig_per_1000
+        description: "Sof migratsiya koeffitsienti (‰)."
+
+  - name: mart_population_split_yearly
+    description: >
+      Aholi tarkibi: jins (erkak/ayol) va joylashuv (shahar/qishloq) bo'yicha.
+      Reconciliation difflar va sifat bayroqlari qo'shilgan.
+
+      Muhim: population_women 2014 yilgacha mavjud emas —
+      missing_women_flag = 1 bo'lsa, jins bo'yicha tahlil ishonchsiz.
+
+      Grain: geo_code × year
+    columns:
+      - name: geo_code
+        data_tests: [not_null]
+      - name: year
+        data_tests: [not_null]
+      - name: population_total
+        description: "Jami aholi (ming)."
+      - name: population_men
+        description: "Erkaklar soni (ming)."
+      - name: population_women
+        description: "Ayollar soni (ming). 2014 yilgacha NULL."
+      - name: population_urban
+        description: "Shahar aholisi (ming)."
+      - name: population_rural
+        description: "Qishloq aholisi (ming)."
+      - name: sex_diff
+        description: >
+          Jins reconciliation = population_total - (population_men + population_women).
+          0 ga yaqin bo'lishi kerak. Katta qiymat — manba muammosi.
+          NULL — ayollar qatori mavjud emas (missing_women_flag = 1).
+      - name: settlement_diff
+        description: >
+          Joylashuv reconciliation = population_total - (population_urban + population_rural).
+          0 ga yaqin bo'lishi kerak.
+      - name: missing_women_flag
+        description: "1 = ayollar aholisi mavjud emas (2014 yilgacha), 0 = mavjud."
+
+  - name: mart_births_by_sex_yearly
+    description: >
+      Tug'ilish tahlili: qiz va o'g'il bolalar soni, ulushi va reconciliation.
+
+      Grain: geo_code × year
+    columns:
+      - name: total_birth_yearly
+        description: "Jami tug'ilish soni."
+      - name: birth_girls
+        description: "Qiz bolalar soni."
+      - name: birth_boys
+        description: "O'g'il bolalar soni."
+      - name: share_girls
+        description: "Qizlar ulushi (%) = birth_girls / total_birth_yearly * 100."
+      - name: share_boys
+        description: "O'g'illar ulushi (%) = birth_boys / total_birth_yearly * 100."
+      - name: sex_diff
+        description: >
+          Reconciliation = total_birth_yearly - (birth_girls + birth_boys).
+          0 bo'lishi kerak. Farq bo'lsa — manba ma'lumotlarini tekshirish kerak.
+
+  - name: mart_metric_coverage
+    description: >
+      Har bir metrik uchun yillar bo'yicha qamrov statistikasi.
+      Qaysi metrik qaysi yilda to'liq, qaysi yilda bo'sh ekanligini ko'rsatadi.
+      Data sifatini monitoring qilish va dashboard filtrlash uchun ishlatiladi.
+
+      Grain: metric_key × year
+    columns:
+      - name: metric_key
+        description: "Metrik identifikatori."
+        data_tests: [not_null]
+      - name: year
+        description: "Kalendar yili."
+        data_tests: [not_null]
+      - name: rows_cnt
+        description: "Ushbu metrik × yil uchun jami qatorlar soni."
+      - name: non_null_cnt
+        description: "NULL bo'lmagan qiymatlar soni."
