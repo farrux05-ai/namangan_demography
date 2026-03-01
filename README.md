@@ -74,11 +74,11 @@ namangan-demography/
 │   ├── models/
 │   │   ├── staging/          # stg_sdmx_*_long.sql
 │   │   ├── intermediate/     # int_demography_atomic.sql
-│   │   ├── dimensions/       # dim_geo.sql, dim_sex.sql, dim_settlement_type.sql
+│   │   ├── dimensions/       # dim_geo.sql, 
 │   │   ├── facts/            # fact_population_yearly.sql, fact_demography_flows_yearly.sql
 │   │   └── marts/            # mart_*.sql
 │   ├── seeds/
-│   │   ├── dim_metric.csv    # dataset_id → metric semantics
+│   │   ├── dim_metric.csv    # dataset_id → metric semantics # dim_sex.csv, dim_settlement_type.csv
 │   │   └── geo_override.csv  # geo_code → clean name
 │   ├── macros/
 |   |   ├── bootstrap_raw_views.sql    # raw view generator macro
