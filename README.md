@@ -2,7 +2,20 @@
 
 > **O'zbekiston ochiq statistikasidan qayta ishlatiladigan analitik dataset va dashboard-ready martlar**
 > Manbа: SIAT SDMX · Viloyat: Namangan (geo_code `1714%`) · Davr: 2010–2024
+## Architecture
 
+![Demography Diagram](doc/images/demography_diagram.jpg)
+
+![Project Workflow](doc/images/project_workflow.jpg)
+
+![Star Schema](doc/images/star_schema.jpg)
+
+
+
+## Links
+
+- [Dashboard](https://app-9oa8mwwxa6kxj9nbkznjvt.streamlit.app/)
+- [dbt Docs](https://dbt-demography-docs.vercel.app/)
 ---
 
 ## Loyiha maqsadi
