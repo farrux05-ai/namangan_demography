@@ -6,9 +6,9 @@
 
 ![Demography Diagram](doc/images/demography_diagram.jpg)
 
-![Project Workflow](doc/images/project_worklow.jpg)
+![Project Workflow](doc/images/project_workflow.jpg)
 
-![Star Schema](doc/images/star schema.jpg)
+![Star Schema](doc/images/star_schema.jpg)
 
 
 
