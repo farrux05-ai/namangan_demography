@@ -1,133 +1,121 @@
-# Namangan Demography — Analytics Engineering Project
+# 🏙️ Namangan Demography Analytics — dbt + DuckDB + Streamlit
 
-> **O'zbekiston ochiq statistikasidan qayta ishlatiladigan analitik dataset va dashboard-ready martlar**
-> Manbа: SIAT SDMX · Viloyat: Namangan (geo_code `1714%`) · Davr: 2010–2024
-## Architecture
+> **End-to-end analytics engineering project** on Uzbekistan's official open statistics (siat.stat.uz).  
+> Raw government SDMX exports → tested dbt pipeline → live Streamlit dashboard.
 
-![Demography Diagram](doc/images/demography_diagram.jpg)
+![dbt](https://img.shields.io/badge/dbt-Core-orange?logo=dbt)
+![DuckDB](https://img.shields.io/badge/DuckDB-local%20warehouse-yellow)
+![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-red?logo=streamlit)
+![Status](https://img.shields.io/badge/status-live-brightgreen)
+![Period](https://img.shields.io/badge/period-2010--2024-blue)
 
+---
+
+## 🔗 Live Links
+
+| | |
+|--|--|
+| 📊 **Dashboard** | [Open Streamlit App](https://app-9oa8mwwxa6kxj9nbkznjvt.streamlit.app/) |
+| 📖 **dbt Docs** | [Open dbt Documentation](https://dbt-demography-docs.vercel.app/) |
+
+---
+
+## 📌 Project Overview
+
+Uzbekistan's official statistics are published as **static PDFs** — not reusable, not testable, not analytics-ready.
+
+This project transforms raw SDMX exports from [siat.stat.uz](https://siat.stat.uz) into a **clean, tested, documented** analytics layer:
+
+- ✅ Conformed dimensions with single metric definitions
+- ✅ Audit trail (dataset_id, source traceability)
+- ✅ Data quality tests (dbt tests)
+- ✅ Repeatable ingestion + transformations
+- ✅ Live dashboard for business users
+
+**Region:** Namangan (geo_code `1714%`) · **Period:** 2010–2024
+
+---
+
+## 🏗️ Architecture
+```
+Raw CSV (SDMX)
+   └── Staging          — wide → long format, typed contracts
+        └── Intermediate — union all sources, metric join
+             └── Dimensions + Facts — star schema
+                  └── Marts        — dashboard-ready KPIs
+                       └── Streamlit Dashboard
+```
+
+![Architecture Diagram](doc/images/demography_diagram.jpg)
 ![Project Workflow](doc/images/project_workflow.jpg)
-
 ![Star Schema](doc/images/star_schema.jpg)
 
+### Data Model
 
-
-## Links
-
-- [Dashboard](https://app-9oa8mwwxa6kxj9nbkznjvt.streamlit.app/)
-- [dbt Docs](https://dbt-demography-docs.vercel.app/)
----
-
-## Loyiha maqsadi
-
-Davlat statistika portali (siat.stat.uz) ma'lumotlarini statik PDF summarylardan **qayta ishlatilishi mumkin, tekshirilishi mumkin bo'lgan** analitik formatga o'tkazish:
-
-- Yagona metrik definitsiyalari (conformed dimensions)
-- Audit izlari (dataset_id, source traceability)
-- Data quality va qamrov tekshiruvlari
-- Takrorlanuvchi ingestion + dbt transformatsiyalar
+| Layer | Models | Purpose |
+|-------|--------|---------|
+| **Raw** | `raw.sdmx_data_*` | DuckDB views over CSV files |
+| **Staging** | `stg_sdmx_<id>_long` | Wide → Long, contract: `dataset_id, geo_code, year, value` |
+| **Intermediate** | `int_demography_atomic` | Union all sources + dim_metric join |
+| **Dimensions** | `dim_geo`, `dim_sex`, `dim_settlement_type`, `dim_metric` | Conformed dims |
+| **Facts** | `fact_population_yearly`, `fact_demography_flows_yearly` | Stock & flow facts |
+| **Marts** | `mart_*` | Dashboard-ready with derived KPIs |
 
 ---
 
-## Ko'rsatkichlar (2010–2024)
+## 📊 Metrics Covered (2010–2024)
 
-| Guruh | Ko'rsatkichlar |
-|---|---|
-| **Aholi (stock)** | jami, erkak, ayol *(ayol 2014 dan)*, shahar, qishloq |
-| **Tug'ilish (flow)** | jami, qizlar, o'g'illar |
-| **Vafot (flow)** | jami, ayollar, erkaklar |
-| **Migratsiya (flow)** | kiruvchi, chiquvchi (jami) |
-| **Nikoh (flow)** | jami, shahar, qishloq |
-| **Ajralish (flow)** | jami, shahar, qishloq |
-
----
-
-## Ma'lumot manbalari
-
-SIAT SDMX export endpointlaridan yuklab olingan, raw CSV sifatida saqlanadi.
-
-- Fayl nomi: `sdmx_data_<dataset_id>.csv`
-- Metrik lug'ati: `dbt/seeds/dim_metric.csv`
-- Geo nom override: `dbt/seeds/geo_override.csv`
-- Ingestion ro'yxati: `ingest/manifest.csv`
+| Group | Metrics |
+|-------|---------|
+| **Population (stock)** | total, male, female *(from 2014)*, urban, rural |
+| **Births (flow)** | total, girls, boys |
+| **Deaths (flow)** | total, female, male |
+| **Migration (flow)** | arrivals, departures |
+| **Marriages (flow)** | total, urban, rural |
+| **Divorces (flow)** | total, urban, rural |
 
 ---
 
-## Arxitektura
+## 🔑 Key Design Decisions
 
-```
-Raw CSV → Staging → Intermediate → Dimensions → Facts → Marts → Dashboard
-```
+**1. Namangan-first, but extensible**  
+Add new regions by updating `ingest/manifest.csv` + `geo_override.csv` — no model changes needed.
 
-### Qatlamlar
+**2. Missing women flag**  
+`population_women` data starts from 2014. `mart_population_split_yearly` marks gaps with `missing_women_flag = 1`.
 
-| Qatlam | Model | Vazifa |
-|---|---|---|
-| **Raw** | `raw.sdmx_data_*` | DuckDB view over CSV files |
-| **Staging** | `stg_sdmx_<id>_long` | Wide → Long format, kontrakt: `dataset_id, geo_code, year, value` |
-| **Intermediate** | `int_demography_atomic` | Barcha staging lar union + dim_metric join, yagona atom jadval |
-| **Dimensions** | `dim_geo`, `dim_sex`, `dim_settlement_type`, `dim_metric` | Conformed dimensions |
-| **Facts** | `fact_population_yearly`, `fact_demography_flows_yearly` | Stock va flow faktlari |
-| **Marts** | `mart_*` | Dashboard-ready, derived KPIlar bilan |
+**3. Reconciliation diffs**  
+`sex_diff` and `settlement_diff` columns expose discrepancies between totals and components — flags source definition issues.
+
+**4. Metric dictionary as seed**  
+`dataset_id → metric_key, metric_group, sex, settlement_type` mapping lives in `dim_metric.csv` seed — adding a new dataset requires only one CSV row.
 
 ---
 
-## Loyiha tuzilmasi
+## ⚙️ How to Run
 
-```
-namangan-demography/
-├── ingest/
-│   ├── manifest.csv          # dataset id, URL, metrik kalit
-│   └── download.py           # raw yuklab olish + .meta.json yozish
-├── data/
-│   └── raw/
-│       └── siat_stat_uz/
-│           └── sdmx_data_<id>.csv
-├── dbt/
-│   ├── models/
-│   │   ├── staging/          # stg_sdmx_*_long.sql
-│   │   ├── intermediate/     # int_demography_atomic.sql
-│   │   ├── dimensions/       # dim_geo.sql, 
-│   │   ├── facts/            # fact_population_yearly.sql, fact_demography_flows_yearly.sql
-│   │   └── marts/            # mart_*.sql
-│   ├── seeds/
-│   │   ├── dim_metric.csv    # dataset_id → metric semantics # dim_sex.csv, dim_settlement_type.csv
-│   │   └── geo_override.csv  # geo_code → clean name
-│   ├── macros/
-|   |   ├── bootstrap_raw_views.sql    # raw view generator macro
-│   ├── tests/                # data quality tests
-│   └── dbt_project.yml
-├── dashboard/
-│   ├── app.py                # Streamlit dashboard
-│   └── data/                 # mart CSV eksportlari
-└── README.md
-```
-
----
-
-## Ishlatish
-
-### 1 — Raw data yuklab olish
+### Prerequisites
+- Python 3.9+
+- dbt-core + dbt-duckdb (`pip install dbt-core dbt-duckdb`)
 ```bash
+# 1. Clone
+git clone https://github.com/farrux05-ai/namangan_demography
+cd namangan_demography
+
+# 2. Download raw data
 python ingest/download.py
-```
 
-### 2 — dbt ishga tushirish
-```bash
+# 3. Run dbt pipeline
 cd dbt
 dbt deps
-dbt seed          # dim_metric, geo_override
-dbt run           # barcha modellar
-dbt test          # data quality tekshiruv
-```
+dbt seed          # load dim_metric, geo_override
+dbt run           # run all models
+dbt test          # data quality checks
 
-### 3 — Mart CSV eksport (dashboard uchun)
-```bash
+# 4. Export marts for dashboard
 python dashboard/export_marts.py
-```
 
-### 4 — Dashboard ishga tushirish
-```bash
+# 5. Launch dashboard
 cd dashboard
 pip install -r requirements.txt
 streamlit run app.py
@@ -135,50 +123,44 @@ streamlit run app.py
 
 ---
 
-## Muhim dizayn qarorlari
-
-### 1. Faqat Namangan (`1714%`) — lekin kengaytirilishi mumkin
-Hozirda `dim_geo`, staging, va mart modellarda `where geo_code like '1714%'` filtri mavjud. Boshqa viloyatlar uchun:
-1. `ingest/manifest.csv` ga yangi dataset_id larni qo'shing
-2. `geo_override.csv` ga yangi geo nomlarini qo'shing
-3. `mart_*` modellaridagi prefix filtri `dbt_project.yml` dagi `var` ga o'tkazing
-
-### 2. Missing women flag
-`population_women` qamrovi 2014 yildan boshlanadi. `mart_population_split_yearly` da `missing_women_flag = 1` bu holatni belgilaydi. Koeffitsient hisoblashda `nullif()` ishlatilgan.
-
-### 3. Reconciliation diffs
-`sex_diff` va `settlement_diff` ustunlari jami va komponentlar yig'indisi farqini ko'rsatadi. Nol bo'lmagan qiymatlar manba definitsiyasi muammosini bildiradi.
-
-### 4. Metrik lug'ati (dim_metric seed)
-SDMX `dataset_id` → `metric_key`, `metric_group`, `sex`, `settlement_type` mapping. Yangi dataset qo'shilganda faqat seed qatorini yangilash kifoya.
-
----
-
-## Ma'lumotlar sifati
-
-`dbt test` quyidagilarni tekshiradi:
-
-- `int_demography_atomic`: `geo_code`, `year`, `metric_key` not null
-- `dim_geo.geo_code`: unique + not null
-- `fact_demography_flows_yearly.metric_group`: accepted_values
-- Referensial yaxlitlik: `sex` → `dim_sex`, `settlement_type` → `dim_settlement_type`
-
-`mart_metric_coverage` jadvali har bir metrik uchun yillar kesimida null qiymatlar ulushini ko'rsatadi.
+## 📁 Project Structure
+```
+namangan_demography/
+├── ingest/
+│   ├── manifest.csv          # dataset_id, URL, metric key
+│   └── download.py           # fetches raw CSV + writes .meta.json
+├── data/raw/siat_stat_uz/    # raw SDMX CSV files
+├── dbt/
+│   ├── models/
+│   │   ├── staging/          # stg_sdmx_*_long.sql
+│   │   ├── intermediate/     # int_demography_atomic.sql
+│   │   ├── dimensions/       # dim_geo, dim_sex, dim_metric...
+│   │   ├── facts/            # fact_population_yearly, fact_demography_flows
+│   │   └── marts/            # mart_*.sql
+│   ├── seeds/                # dim_metric.csv, geo_override.csv
+│   ├── macros/               # bootstrap_raw_views macro
+│   └── tests/                # data quality tests
+├── dashboard/
+│   ├── app.py                # Streamlit app
+│   └── data/                 # mart CSV exports
+└── README.md
+```
 
 ---
 
-## Stack
+## 🛠️ Tech Stack
 
-| Vosita | Maqsad |
-|---|---|
-| Python + requests | Ingestion |
-| DuckDB | Mahalliy analitik ma'lumotlar bazasi |
-| dbt-core + dbt-duckdb | Transformatsiya va test |
-| Streamlit + Altair | Vizualizatsiya |
+| Tool | Purpose |
+|------|---------|
+| Python + requests | Data ingestion from SDMX API |
+| DuckDB | Local analytical warehouse |
+| dbt Core + dbt-duckdb | Transformation & testing |
+| Streamlit + Altair | Dashboard & visualization |
 
 ---
 
-## Muallif haqida
+## 👤 Author
 
-Bu loyiha **Analytics Engineering** amaliyotlarini ko'rsatish uchun yaratilgan:
-raw ochiq ma'lumotlarni tuzilgan, qayta ishlatiladigan, hujjatlashtirilgan analitik layerga o'tkazish.
+**Farruxbek Valijonov** — Analytics Engineer  
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/farrux-valijonov)
+[![GitHub](https://img.shields.io/badge/GitHub-farrux05--ai-black?logo=github)](https://github.com/farrux05-ai)
