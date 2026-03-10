@@ -19,6 +19,11 @@
 | 📖 **dbt Docs** | [Open dbt Documentation](https://dbt-demography-docs.vercel.app/) |
 
 ---
+## Why this project matters
+
+Public demographic data is often fragmented, inconsistently structured, and difficult to analyze directly.
+This project turns raw official statistics into a tested analytical warehouse with reusable dimensions, facts, and dashboard-ready marts.
+It shows how analytics engineering can support regional planning, population trend analysis, and policy-oriented reporting.
 
 ## 📌 Project Overview
 
@@ -90,6 +95,37 @@ Add new regions by updating `ingest/manifest.csv` + `geo_override.csv` — no mo
 **4. Metric dictionary as seed**  
 `dataset_id → metric_key, metric_group, sex, settlement_type` mapping lives in `dim_metric.csv` seed — adding a new dataset requires only one CSV row.
 
+## Core models
+
+| Layer | Model | Purpose |
+|---|---|---|
+| Dimension | dim_geo | Region / district hierarchy |
+| Dimension | dim_metric | Standardized metric catalog |
+| Fact | fact_population_yearly | Population levels by geography and year |
+| Fact | fact_demography_flows_yearly | Births, deaths, migration flows |
+| Mart | mart_region_overview_yearly | Dashboard-ready regional KPI summary |
+| Mart | mart_births_by_sex_yearly | Birth trend breakdown |
+| Mart | mart_population_split_yearly | Population structure analysis |
+
+## Data quality and reliability
+
+This project includes:
+- dbt tests for key model integrity
+- standardized seed files for metric and geography consistency
+- typed staging contracts before mart generation
+- 
+## Decision use-cases
+
+- Compare long-term population growth across districts
+- Track births, deaths, and migration trends over time
+- Identify regions with unusual demographic shifts
+- Build reporting inputs for policy or planning discussions
+
+## Limitations
+
+- Source data depends on public SDMX export quality
+- Geographic mappings may require periodic override maintenance
+- Dashboard currently focuses on yearly aggregates rather than monthly granularity
 ---
 
 ## ⚙️ How to Run
